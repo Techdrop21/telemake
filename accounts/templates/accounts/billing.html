@@ -1,0 +1,526 @@
+{% extends "accounts/dashboard_base.html" %}
+
+{% block title %}Billing & Subscription{% endblock %}
+
+{% block extra_head %}
+<style>
+  /* ── Subscription status banner ─────────────────────────────────────── */
+  .sub-banner {
+    border-radius: 8px;
+    padding: 20px 24px;
+    margin-bottom: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 16px;
+  }
+  .sub-banner.active   { background: #d1fae5; border: 1px solid #a7f3d0; }
+  .sub-banner.inactive { background: #fef3c7; border: 1px solid #fde68a; }
+  .sub-banner.expired  { background: #fee2e2; border: 1px solid #fecaca; }
+  .sub-banner.pending  { background: #dbeafe; border: 1px solid #bfdbfe; }
+  .sub-banner-text h3  { font-size: 16px; font-weight: 700; margin-bottom: 4px; }
+  .sub-banner-text p   { font-size: 13px; opacity: .85; }
+
+  /* ── Current-plan meta strip ─────────────────────────────────────────── */
+  .sub-meta {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 16px;
+    margin-bottom: 32px;
+  }
+  .sub-meta-item { background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 16px; }
+  .sub-meta-item .label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .6px; color: var(--muted); margin-bottom: 6px; }
+  .sub-meta-item .value { font-size: 18px; font-weight: 700; color: var(--text); }
+  .sub-meta-item .value.days { color: var(--success); }
+
+  /* ── Plan cards ─────────────────────────────────────────────────────── */
+  .plan-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
+    margin-bottom: 32px;
+  }
+  @media (max-width: 860px) { .plan-grid { grid-template-columns: 1fr; } }
+
+  .plan-card {
+    border: 2px solid var(--border);
+    border-radius: 10px;
+    padding: 28px 20px 24px;
+    position: relative;
+    transition: box-shadow .15s;
+    display: flex;
+    flex-direction: column;
+  }
+  .plan-card:hover { box-shadow: 0 4px 20px rgba(0,0,0,.07); }
+  .plan-card.popular { border-color: var(--primary); }
+  .plan-card.current { border-color: var(--success); }
+
+  .plan-badge {
+    position: absolute;
+    top: -12px;
+    left: 20px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .8px;
+    text-transform: uppercase;
+    padding: 3px 10px;
+    border-radius: 20px;
+  }
+  .plan-badge.popular { background: var(--primary); color: #fff; }
+  .plan-badge.current { background: var(--success); color: #fff; }
+
+  .plan-name   { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .8px; color: var(--muted); margin-bottom: 8px; }
+  .plan-price  { font-size: 36px; font-weight: 800; color: var(--text); letter-spacing: -1px; line-height: 1; margin-bottom: 2px; }
+  .plan-price span { font-size: 14px; font-weight: 500; color: var(--muted); }
+  .plan-saves  { display: inline-block; background: #d1fae5; color: #065f46; font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 20px; margin: 6px 0 14px; }
+  .plan-nosave { height: 22px; margin-bottom: 14px; }
+  .plan-divider { height: 1px; background: var(--border); margin-bottom: 16px; }
+
+  .plan-features { list-style: none; margin-bottom: 20px; flex: 1; }
+  .plan-features li { display: flex; align-items: center; gap: 8px; font-size: 13px; padding: 4px 0; color: var(--text); }
+  .plan-features li svg { flex-shrink: 0; color: var(--success); }
+
+  .btn-pay {
+    width: 100%;
+    background: var(--primary);
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    padding: 11px;
+    font-size: 14px;
+    font-weight: 700;
+    font-family: var(--font);
+    cursor: pointer;
+    transition: background .15s;
+    margin-top: auto;
+  }
+  .btn-pay:hover { background: var(--primary-dark); }
+
+  /* ── Payment modal ───────────────────────────────────────────────────── */
+  .modal-backdrop {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,.45);
+    z-index: 1000;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+  }
+  .modal-backdrop.open { display: flex; }
+
+  .modal {
+    background: #fff;
+    border-radius: 12px;
+    width: 100%;
+    max-width: 420px;
+    padding: 32px;
+    position: relative;
+    box-shadow: 0 20px 60px rgba(0,0,0,.2);
+    animation: modal-in .15s ease-out;
+  }
+  @keyframes modal-in {
+    from { opacity: 0; transform: translateY(12px); }
+    to   { opacity: 1; transform: translateY(0);    }
+  }
+
+  .modal-close {
+    position: absolute;
+    top: 16px; right: 16px;
+    background: none; border: none;
+    cursor: pointer;
+    color: var(--muted);
+    padding: 4px;
+    border-radius: 4px;
+    line-height: 1;
+  }
+  .modal-close:hover { background: var(--bg); color: var(--text); }
+
+  .modal-plan-label {
+    display: inline-block;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 700;
+    padding: 3px 12px;
+    margin-bottom: 16px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: .6px;
+  }
+  .modal h2 { font-size: 22px; font-weight: 700; margin-bottom: 6px; }
+  .modal-amount { font-size: 36px; font-weight: 800; color: var(--primary); letter-spacing: -1px; margin-bottom: 24px; }
+  .modal-amount span { font-size: 15px; font-weight: 500; color: var(--muted); }
+
+  .modal label {
+    display: block;
+    font-size: 13px;
+    font-weight: 600;
+    margin-bottom: 8px;
+    color: var(--text);
+  }
+  .phone-row {
+    display: flex;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+    margin-bottom: 8px;
+    transition: border-color .15s;
+  }
+  .phone-row:focus-within { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(0,87,168,.1); }
+  .phone-prefix {
+    padding: 0 12px;
+    background: var(--bg);
+    border-right: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--muted);
+    white-space: nowrap;
+    user-select: none;
+  }
+  .phone-row input[type="tel"] {
+    flex: 1;
+    border: none;
+    padding: 12px 12px;
+    font-size: 15px;
+    font-family: var(--font);
+    outline: none;
+    background: transparent;
+    min-width: 0;
+  }
+  .phone-help { font-size: 12px; color: var(--muted); margin-bottom: 20px; }
+
+  .btn-modal-pay {
+    width: 100%;
+    background: var(--primary);
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    padding: 14px;
+    font-size: 16px;
+    font-weight: 700;
+    font-family: var(--font);
+    cursor: pointer;
+    transition: background .15s;
+  }
+  .btn-modal-pay:hover { background: var(--primary-dark); }
+
+  .modal-secure {
+    text-align: center;
+    font-size: 12px;
+    color: var(--muted);
+    margin-top: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+  }
+
+  /* ── Payment history table ──────────────────────────────────────────── */
+  .table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .payment-table { width: 100%; border-collapse: collapse; font-size: 14px; min-width: 520px; }
+  .payment-table th { text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: .6px; color: var(--muted); padding: 8px 12px; border-bottom: 2px solid var(--border); }
+  .payment-table td { padding: 12px 12px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+  .payment-table tr:last-child td { border-bottom: none; }
+
+  .status-pill {
+    display: inline-block;
+    padding: 2px 10px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .5px;
+  }
+  .status-pill.success   { background: #d1fae5; color: #065f46; }
+  .status-pill.pending,
+  .status-pill.queued    { background: #fef3c7; color: #92400e; }
+  .status-pill.failed,
+  .status-pill.cancelled { background: #fee2e2; color: #991b1b; }
+  .status-pill.stale     { background: #f3f4f6; color: #374151; }
+
+  .empty-state { text-align: center; padding: 32px; color: var(--muted); font-size: 14px; }
+
+  /* ── Mobile overrides ───────────────────────────────────────────────── */
+  @media (max-width: 600px) {
+    .plan-grid { grid-template-columns: 1fr; }
+
+    .sub-meta { grid-template-columns: 1fr 1fr; }
+
+    /* Modal fits phone screens */
+    .modal-backdrop { padding: 12px; align-items: flex-end; }
+    .modal {
+      border-radius: 16px 16px 0 0;
+      padding: 24px 20px 32px;
+      max-width: 100%;
+    }
+    .modal-amount { font-size: 28px; }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1>Billing &amp; Subscription</h1>
+  <p>Manage your plan and view payment history.</p>
+</div>
+
+{# ── Subscription banner ──────────────────────────────────────────────────── #}
+{% if subscription.is_active %}
+<div class="sub-banner active">
+  <div class="sub-banner-text">
+    <h3>Subscription active</h3>
+    <p>Your {{ subscription.get_plan_display }} plan is running. {{ subscription.days_remaining }} day{{ subscription.days_remaining|pluralize }} remaining.</p>
+  </div>
+  <span class="badge badge--active">Active</span>
+</div>
+{% elif subscription.status == "pending" %}
+<div class="sub-banner pending">
+  <div class="sub-banner-text">
+    <h3>Payment pending</h3>
+    <p>A payment is being processed. Your subscription will activate once M-Pesa confirms.</p>
+  </div>
+  <span class="badge badge--pending">Pending</span>
+</div>
+{% elif subscription.status == "expired" %}
+<div class="sub-banner expired">
+  <div class="sub-banner-text">
+    <h3>Subscription expired</h3>
+    <p>Your plan expired on {{ subscription.expiry_date|date:"j M Y" }}. Choose a plan below to renew.</p>
+  </div>
+  <span class="badge badge--inactive">Expired</span>
+</div>
+{% else %}
+<div class="sub-banner inactive">
+  <div class="sub-banner-text">
+    <h3>No active subscription</h3>
+    <p>Choose a plan below to activate your account and start receiving submissions.</p>
+  </div>
+  <span class="badge badge--inactive">Inactive</span>
+</div>
+{% endif %}
+
+{# ── Current plan meta ────────────────────────────────────────────────────── #}
+{% if subscription.is_active %}
+<div class="sub-meta">
+  <div class="sub-meta-item">
+    <div class="label">Current plan</div>
+    <div class="value">{{ subscription.get_plan_display }}</div>
+  </div>
+  <div class="sub-meta-item">
+    <div class="label">Days remaining</div>
+    <div class="value days">{{ subscription.days_remaining }}</div>
+  </div>
+  <div class="sub-meta-item">
+    <div class="label">Expires</div>
+    <div class="value">{{ subscription.expiry_date|date:"j M Y" }}</div>
+  </div>
+  <div class="sub-meta-item">
+    <div class="label">Last payment</div>
+    <div class="value" style="font-size:13px; font-weight:500;">{{ subscription.payment_reference|default:"—" }}</div>
+  </div>
+</div>
+{% endif %}
+
+{# ── Plan selection ───────────────────────────────────────────────────────── #}
+<div class="card">
+  <div class="card-header">
+    <h3>{% if subscription.is_active %}Renew or upgrade{% else %}Choose a plan{% endif %}</h3>
+  </div>
+  <div class="card-body">
+    <div class="plan-grid">
+
+      {# ── Weekly ────────────────────────────────────────────────────── #}
+      <div class="plan-card {% if subscription.plan == 'weekly' and subscription.is_active %}current{% endif %}">
+        {% if subscription.plan == 'weekly' and subscription.is_active %}<span class="plan-badge current">Current plan</span>{% endif %}
+        <p class="plan-name">Weekly</p>
+        <div class="plan-price">KES {{ plan_catalogue.weekly.price|floatformat:0 }}<span> / week</span></div>
+        <div class="plan-nosave"></div>
+        <div class="plan-divider"></div>
+        <ul class="plan-features">
+          <li><svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>Unlimited submissions</li>
+          <li><svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>Telegram notifications</li>
+          <li><svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>7-day access</li>
+        </ul>
+        <button class="btn-pay" onclick="openPayModal('weekly','Weekly','KES {{ plan_catalogue.weekly.price|floatformat:0 }}')">Pay KES {{ plan_catalogue.weekly.price|floatformat:0 }}</button>
+      </div>
+
+      {# ── Monthly ───────────────────────────────────────────────────── #}
+      <div class="plan-card popular {% if subscription.plan == 'monthly' and subscription.is_active %}current{% endif %}">
+        {% if subscription.plan == 'monthly' and subscription.is_active %}
+          <span class="plan-badge current">Current plan</span>
+        {% else %}
+          <span class="plan-badge popular">Most popular</span>
+        {% endif %}
+        <p class="plan-name">Monthly</p>
+        <div class="plan-price">KES {{ plan_catalogue.monthly.price|floatformat:0 }}<span> / month</span></div>
+        <span class="plan-saves">Save KES {{ plan_catalogue.monthly.saves|floatformat:0 }} vs weekly</span>
+        <div class="plan-divider"></div>
+        <ul class="plan-features">
+          <li><svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>Unlimited submissions</li>
+          <li><svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>Telegram notifications</li>
+          <li><svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>30-day access</li>
+        </ul>
+        <button class="btn-pay" onclick="openPayModal('monthly','Monthly','KES {{ plan_catalogue.monthly.price|floatformat:0 }}')">Pay KES {{ plan_catalogue.monthly.price|floatformat:0 }}</button>
+      </div>
+
+      {# ── Biannual ──────────────────────────────────────────────────── #}
+      <div class="plan-card {% if subscription.plan == 'biannual' and subscription.is_active %}current{% endif %}">
+        {% if subscription.plan == 'biannual' and subscription.is_active %}<span class="plan-badge current">Current plan</span>{% endif %}
+        <p class="plan-name">6 Months</p>
+        <div class="plan-price">KES {{ plan_catalogue.biannual.price|floatformat:0 }}<span> / 6 mo.</span></div>
+        <span class="plan-saves">Save KES {{ plan_catalogue.biannual.saves|floatformat:0 }} vs monthly</span>
+        <div class="plan-divider"></div>
+        <ul class="plan-features">
+          <li><svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>Unlimited submissions</li>
+          <li><svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>Telegram notifications</li>
+          <li><svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>180-day access</li>
+        </ul>
+        <button class="btn-pay" onclick="openPayModal('biannual','6 Months','KES {{ plan_catalogue.biannual.price|floatformat:0 }}')">Pay KES {{ plan_catalogue.biannual.price|floatformat:0 }}</button>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+{# ── Payment history ──────────────────────────────────────────────────────── #}
+<div class="card">
+  <div class="card-header">
+    <h3>Payment history</h3>
+  </div>
+  <div class="card-body">
+    {% if payments %}
+    <div class="table-scroll">
+    <table class="payment-table">
+      <thead>
+        <tr>
+          <th>Date</th>
+          <th>Plan</th>
+          <th>Amount</th>
+          <th>Phone</th>
+          <th>Status</th>
+          <th>M-Pesa receipt</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for p in payments %}
+        <tr>
+          <td style="color:var(--muted); font-size:13px;">{{ p.created_at|date:"j M Y, H:i" }}</td>
+          <td style="text-transform:capitalize;">
+            {% if p.plan == "biannual" %}6 Months{% else %}{{ p.plan|title }}{% endif %}
+          </td>
+          <td style="font-weight:600;">KES {{ p.amount|floatformat:0 }}</td>
+          <td style="font-family:monospace; font-size:13px;">{{ p.phone }}</td>
+          <td><span class="status-pill {{ p.status }}">{{ p.status|title }}</span></td>
+          <td style="font-family:monospace; font-size:13px; color:var(--muted);">
+            {{ p.mpesa_receipt|default:"—" }}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    </div>
+    {% else %}
+    <div class="empty-state">No payments yet. Choose a plan above to get started.</div>
+    {% endif %}
+  </div>
+</div>
+
+{# ── Single shared payment modal ──────────────────────────────────────────── #}
+<div class="modal-backdrop" id="payModal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+  <div class="modal">
+    <button class="modal-close" onclick="closePayModal()" aria-label="Close">
+      <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+      </svg>
+    </button>
+
+    <span class="modal-plan-label" id="modal-plan-label">Weekly</span>
+    <h2 id="modal-title">Confirm payment</h2>
+    <div class="modal-amount" id="modal-amount">KES {{ plan_catalogue.weekly.price|floatformat:0 }}</div>
+
+    <form method="post" action="{% url 'accounts:initiate_payment' %}">
+      {% csrf_token %}
+      <input type="hidden" name="plan" id="modal-plan-input" value="weekly" />
+
+      <label for="modal-phone">M-Pesa phone number</label>
+      <div class="phone-row">
+        <span class="phone-prefix">🇰🇪 +254</span>
+        <input
+          type="tel"
+          id="modal-phone"
+          name="phone"
+          placeholder="712 345 678"
+          maxlength="9"
+          inputmode="numeric"
+          autocomplete="tel-national"
+          value="{{ phone_local }}"
+          required
+        />
+      </div>
+      <p class="phone-help">Enter the 9-digit number after +254. The M-Pesa PIN prompt will be sent here.</p>
+
+      <button type="submit" class="btn-modal-pay" id="modal-submit-btn">
+        Send M-Pesa prompt
+      </button>
+    </form>
+
+    <p class="modal-secure">
+      <svg width="13" height="13" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+      </svg>
+      Secured by PayHero &amp; M-Pesa
+    </p>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+// ── Account phone pre-fill ───────────────────────────────────────────────────
+// The server passes the full stored phone (e.g. +254712345678 or 0712345678).
+// We strip everything except the last 9 digits for the input.
+(function () {
+  const raw = "{{ business_owner.phone|escapejs }}";
+  if (!raw) return;
+  // Remove all non-digits
+  const digits = raw.replace(/\D/g, "");
+  // Take last 9 digits (strips country code prefix)
+  const local = digits.length >= 9 ? digits.slice(-9) : digits;
+  const input = document.getElementById("modal-phone");
+  if (input && local) input.value = local;
+})();
+
+// ── Modal open / close ───────────────────────────────────────────────────────
+function openPayModal(planKey, planLabel, planAmount) {
+  document.getElementById("modal-plan-input").value = planKey;
+  document.getElementById("modal-plan-label").textContent = planLabel;
+  document.getElementById("modal-amount").innerHTML =
+    planAmount + '<span> one-time</span>';
+  document.getElementById("modal-submit-btn").textContent =
+    "Send M-Pesa prompt — " + planAmount;
+  document.getElementById("payModal").classList.add("open");
+  // Focus the phone field
+  setTimeout(() => document.getElementById("modal-phone").focus(), 50);
+}
+
+function closePayModal() {
+  document.getElementById("payModal").classList.remove("open");
+}
+
+// Close on backdrop click
+document.getElementById("payModal").addEventListener("click", function (e) {
+  if (e.target === this) closePayModal();
+});
+
+// Close on Escape
+document.addEventListener("keydown", function (e) {
+  if (e.key === "Escape") closePayModal();
+});
+</script>
+{% endblock %}

@@ -41,6 +41,7 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    "accounts",
     "submissions",
 ]
 
@@ -119,7 +120,13 @@ STATICFILES_DIRS = [BASE_DIR / "submissions" / "static"]
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
-# --- Logging ---
+# --- Authentication ---
+
+LOGIN_URL = "/login/"
+LOGIN_REDIRECT_URL = "/dashboard/"
+LOGOUT_REDIRECT_URL = "/login/"
+
+# --- Telegram logging ---
 
 LOGGING = {
     "version": 1,
@@ -137,8 +144,14 @@ LOGGING = {
         },
     },
     "loggers": {
-        # Catches all submissions app logs (webhook errors, success, etc.)
+        # Catches all submissions app logs (Telegram errors, success, etc.)
         "submissions": {
+            "handlers": ["console"],
+            "level": "DEBUG",
+            "propagate": False,
+        },
+        # Catches all accounts app logs (PayHero errors, subscription events, etc.)
+        "accounts": {
             "handlers": ["console"],
             "level": "DEBUG",
             "propagate": False,
@@ -152,10 +165,17 @@ LOGGING = {
     },
 }
 
-# --- n8n webhook ---
+# --- PayHero ---
+# API credentials — from the PayHero dashboard under API Keys.
+# Either set USERNAME + PASSWORD (the library base64-encodes them), or paste
+# the finished Basic token directly as PAYHERO_BASIC_AUTH_TOKEN.
 
-N8N_WEBHOOK_URL = _require_env("N8N_WEBHOOK_URL")
-N8N_WEBHOOK_SECRET = os.environ.get("N8N_WEBHOOK_SECRET", "")
+PAYHERO_USERNAME = os.environ.get("PAYHERO_USERNAME", "")
+PAYHERO_PASSWORD = os.environ.get("PAYHERO_PASSWORD", "")
+PAYHERO_BASIC_AUTH_TOKEN = os.environ.get("PAYHERO_BASIC_AUTH_TOKEN", "")
+
+# Numeric channel ID — from PayHero dashboard → Payment Channels → My Payment Channels
+PAYHERO_CHANNEL_ID = os.environ.get("PAYHERO_CHANNEL_ID", "")
 
 # --- Security headers (production only) ---
 

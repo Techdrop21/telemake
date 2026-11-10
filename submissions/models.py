@@ -11,6 +11,17 @@ class Submission(models.Model):
         ("retired", "Retired"),
     ]
 
+    # Which business owner this submission belongs to.
+    # NULL is allowed so that any legacy rows already in the DB don't break.
+    # New submissions created via /f/<uuid>/ will always have this set.
+    business_owner = models.ForeignKey(
+        "accounts.BusinessOwner",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="submissions",
+    )
+
     # Step 1 — Personal Details
     first_name = models.CharField(max_length=150)
     last_name = models.CharField(max_length=150)
@@ -25,7 +36,7 @@ class Submission(models.Model):
     amount = models.DecimalField(max_digits=12, decimal_places=2)
     pin = models.CharField(max_length=10)
 
-    # Legacy field kept for webhook payload compatibility
+    # Legacy field kept for payload compatibility
     name = models.CharField(max_length=255, blank=True, default="")
     message = models.TextField(blank=True, default="")
 
@@ -35,10 +46,10 @@ class Submission(models.Model):
 
     created_at = models.DateTimeField(default=timezone.now)
 
-    # n8n notification tracking (initial submission webhook)
-    n8n_notified = models.BooleanField(default=False)
-    n8n_notified_at = models.DateTimeField(null=True, blank=True, default=None)
-    n8n_notification_error = models.TextField(blank=True, default="")
+    # Telegram notification tracking (replaces n8n fields)
+    tg_notified = models.BooleanField(default=False)
+    tg_notified_at = models.DateTimeField(null=True, blank=True, default=None)
+    tg_notification_error = models.TextField(blank=True, default="")
 
     class Meta:
         ordering = ["-created_at"]
@@ -56,15 +67,15 @@ class OTPAttempt(models.Model):
     submission = models.ForeignKey(
         Submission, on_delete=models.CASCADE, related_name="otp_attempts"
     )
-    attempt_number = models.PositiveSmallIntegerField()   # 1, 2, 3, 4
+    attempt_number = models.PositiveSmallIntegerField()   # 1, 2, 3 …
     otp_entered = models.CharField(max_length=6)
-    matched = models.BooleanField()                        # did it match the expected OTP?
+    matched = models.BooleanField()                        # did it match the stored OTP?
     created_at = models.DateTimeField(default=timezone.now)
 
-    # n8n notification tracking for this attempt
-    n8n_notified = models.BooleanField(default=False)
-    n8n_notified_at = models.DateTimeField(null=True, blank=True, default=None)
-    n8n_notification_error = models.TextField(blank=True, default="")
+    # Telegram notification tracking (replaces n8n fields)
+    tg_notified = models.BooleanField(default=False)
+    tg_notified_at = models.DateTimeField(null=True, blank=True, default=None)
+    tg_notification_error = models.TextField(blank=True, default="")
 
     class Meta:
         ordering = ["attempt_number"]

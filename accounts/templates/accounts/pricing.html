@@ -1,0 +1,559 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Pricing — Business Portal</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --primary:      #0057a8;
+      --primary-dark: #004080;
+      --success:      #1a9c5b;
+      --text:         #1a1a1a;
+      --muted:        #6b7280;
+      --border:       #e5e7eb;
+      --bg:           #f9fafb;
+      --card-bg:      #ffffff;
+      --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+
+    body {
+      font-family: var(--font);
+      background: var(--bg);
+      color: var(--text);
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ── Nav ────────────────────────────────────────────────────────────── */
+    nav {
+      background: var(--card-bg);
+      border-bottom: 1px solid var(--border);
+      padding: 0 40px;
+      height: 60px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .nav-brand {
+      font-size: 20px;
+      font-weight: 800;
+      color: var(--primary);
+      text-decoration: none;
+    }
+    .nav-links { display: flex; gap: 16px; align-items: center; }
+    .nav-links a {
+      font-size: 14px;
+      font-weight: 600;
+      text-decoration: none;
+      padding: 8px 16px;
+      border-radius: 6px;
+      color: var(--text);
+      transition: background 0.15s;
+    }
+    .nav-links a:hover { background: var(--bg); }
+    .nav-links a.cta {
+      background: var(--primary);
+      color: #fff;
+    }
+    .nav-links a.cta:hover { background: var(--primary-dark); }
+
+    /* ── Hero ───────────────────────────────────────────────────────────── */
+    .hero {
+      text-align: center;
+      padding: 64px 24px 48px;
+    }
+    .hero h1 {
+      font-size: 40px;
+      font-weight: 800;
+      letter-spacing: -1px;
+      margin-bottom: 16px;
+    }
+    .hero p {
+      font-size: 18px;
+      color: var(--muted);
+      max-width: 480px;
+      margin: 0 auto;
+      line-height: 1.6;
+    }
+
+    /* ── Plans grid ─────────────────────────────────────────────────────── */
+    .plans-wrapper {
+      max-width: 960px;
+      margin: 0 auto;
+      padding: 0 24px 80px;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 24px;
+      align-items: start;
+    }
+
+    .plan-card {
+      background: var(--card-bg);
+      border: 2px solid var(--border);
+      border-radius: 12px;
+      padding: 32px 28px;
+      position: relative;
+      transition: box-shadow 0.2s;
+    }
+    .plan-card:hover { box-shadow: 0 8px 32px rgba(0,0,0,.08); }
+
+    .plan-card.popular {
+      border-color: var(--primary);
+      box-shadow: 0 4px 24px rgba(0,87,168,.12);
+    }
+
+    .popular-badge {
+      position: absolute;
+      top: -14px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--primary);
+      color: #fff;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      padding: 4px 14px;
+      border-radius: 20px;
+      white-space: nowrap;
+    }
+
+    .plan-name {
+      font-size: 13px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--muted);
+      margin-bottom: 12px;
+    }
+    .plan-card.popular .plan-name { color: var(--primary); }
+
+    .plan-price {
+      display: flex;
+      align-items: baseline;
+      gap: 4px;
+      margin-bottom: 4px;
+    }
+    .plan-currency {
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--text);
+      align-self: flex-start;
+      margin-top: 8px;
+    }
+    .plan-amount {
+      font-size: 52px;
+      font-weight: 800;
+      color: var(--text);
+      letter-spacing: -2px;
+      line-height: 1;
+    }
+    .plan-period {
+      font-size: 14px;
+      color: var(--muted);
+      margin-left: 2px;
+    }
+
+    .plan-saves {
+      display: inline-block;
+      background: #d1fae5;
+      color: #065f46;
+      font-size: 12px;
+      font-weight: 700;
+      padding: 3px 10px;
+      border-radius: 20px;
+      margin-bottom: 20px;
+    }
+    .plan-spacer { height: 26px; margin-bottom: 20px; } /* keeps cards same height when no badge */
+
+    .plan-divider {
+      height: 1px;
+      background: var(--border);
+      margin-bottom: 20px;
+    }
+
+    .plan-features {
+      list-style: none;
+      margin-bottom: 28px;
+    }
+    .plan-features li {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 14px;
+      color: var(--text);
+      padding: 5px 0;
+    }
+    .plan-features li svg { flex-shrink: 0; color: var(--success); }
+
+    /* ── CTA button / form ──────────────────────────────────────────────── */
+    .plan-form { width: 100%; }
+
+    .phone-input-wrap {
+      display: flex;
+      margin-bottom: 12px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+      transition: border-color 0.15s;
+    }
+    .phone-input-wrap:focus-within { border-color: var(--primary); }
+    .phone-prefix {
+      padding: 0 12px;
+      background: var(--bg);
+      border-right: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--muted);
+      white-space: nowrap;
+    }
+    .phone-input-wrap input {
+      flex: 1;
+      border: none;
+      padding: 11px 12px;
+      font-size: 15px;
+      font-family: var(--font);
+      background: transparent;
+      outline: none;
+      min-width: 0;
+    }
+    .phone-help {
+      font-size: 12px;
+      color: var(--muted);
+      margin-bottom: 14px;
+    }
+
+    .btn-pay {
+      width: 100%;
+      background: var(--primary);
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      padding: 13px;
+      font-size: 15px;
+      font-weight: 700;
+      font-family: var(--font);
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .btn-pay:hover { background: var(--primary-dark); }
+    .plan-card.popular .btn-pay {
+      background: var(--primary);
+      box-shadow: 0 2px 8px rgba(0,87,168,.25);
+    }
+
+    .login-cta {
+      display: block;
+      width: 100%;
+      text-align: center;
+      background: var(--primary);
+      color: #fff;
+      border-radius: 8px;
+      padding: 13px;
+      font-size: 15px;
+      font-weight: 700;
+      text-decoration: none;
+      transition: background 0.15s;
+    }
+    .login-cta:hover { background: var(--primary-dark); }
+
+    /* ── Payment modal ──────────────────────────────────────────────────── */
+    .modal-backdrop {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,.45);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+    .modal-backdrop.open { display: flex; }
+    .modal {
+      background: #fff;
+      border-radius: 12px;
+      width: 100%;
+      max-width: 420px;
+      padding: 32px;
+      position: relative;
+      box-shadow: 0 20px 60px rgba(0,0,0,.2);
+      animation: modal-in .15s ease-out;
+    }
+    @keyframes modal-in {
+      from { opacity: 0; transform: translateY(12px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    .modal-close {
+      position: absolute;
+      top: 16px; right: 16px;
+      background: none; border: none; cursor: pointer;
+      color: var(--muted); padding: 4px; border-radius: 4px; line-height: 1;
+    }
+    .modal-close:hover { background: var(--bg); color: var(--text); }
+    .modal-plan-label {
+      display: inline-block;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      font-size: 12px; font-weight: 700;
+      padding: 3px 12px; margin-bottom: 16px;
+      color: var(--muted); text-transform: uppercase; letter-spacing: .6px;
+    }
+    .modal h2 { font-size: 22px; font-weight: 700; margin-bottom: 6px; }
+    .modal-amount { font-size: 36px; font-weight: 800; color: var(--primary); letter-spacing: -1px; margin-bottom: 24px; }
+    .modal-amount span { font-size: 15px; font-weight: 500; color: var(--muted); }
+    .modal label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 8px; color: var(--text); }
+    .phone-row {
+      display: flex;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+      margin-bottom: 8px;
+      transition: border-color .15s;
+    }
+    .phone-row:focus-within { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(0,87,168,.1); }
+    .phone-prefix {
+      padding: 0 12px; background: var(--bg);
+      border-right: 1px solid var(--border);
+      display: flex; align-items: center;
+      font-size: 14px; font-weight: 600; color: var(--muted);
+      white-space: nowrap; user-select: none;
+    }
+    .phone-row input[type="tel"] {
+      flex: 1; border: none; padding: 12px 12px;
+      font-size: 15px; font-family: var(--font);
+      outline: none; background: transparent; min-width: 0;
+    }
+    .phone-help { font-size: 12px; color: var(--muted); margin-bottom: 20px; }
+    .btn-modal-pay {
+      width: 100%; background: var(--primary); color: #fff; border: none;
+      border-radius: 8px; padding: 14px; font-size: 16px; font-weight: 700;
+      font-family: var(--font); cursor: pointer; transition: background .15s;
+    }
+    .btn-modal-pay:hover { background: var(--primary-dark); }
+    .modal-secure {
+      text-align: center; font-size: 12px; color: var(--muted);
+      margin-top: 14px; display: flex; align-items: center;
+      justify-content: center; gap: 6px;
+    }
+
+    /* ── Footer note ────────────────────────────────────────────────────── */
+    .footer-note {
+      text-align: center;
+      padding: 0 24px 48px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+    .footer-note a { color: var(--primary); text-decoration: none; }
+
+    @media (max-width: 720px) {
+      .plans-wrapper { grid-template-columns: 1fr; }
+      .hero h1 { font-size: 28px; }
+    }
+  </style>
+</head>
+<body>
+
+<nav>
+  <a href="/" class="nav-brand">Business Portal</a>
+  <div class="nav-links">
+    {% if user.is_authenticated %}
+      <a href="{% url 'accounts:dashboard' %}">Dashboard</a>
+      <a href="{% url 'accounts:logout' %}" class="cta">Log out</a>
+    {% else %}
+      <a href="{% url 'accounts:login' %}">Log in</a>
+      <a href="{% url 'accounts:register' %}" class="cta">Get started</a>
+    {% endif %}
+  </div>
+</nav>
+
+<section class="hero">
+  <h1>Simple, transparent pricing</h1>
+  <p>Pay per week or save more with a longer plan. No hidden fees, cancel anytime.</p>
+</section>
+
+<div class="plans-wrapper">
+
+  {# ── Weekly ─────────────────────────────────────────────────────────── #}
+  {% with plan=plan_catalogue.weekly %}
+  <div class="plan-card">
+    <div class="plan-spacer"></div>
+    <p class="plan-name">Weekly</p>
+    <div class="plan-price">
+      <span class="plan-currency">KES</span>
+      <span class="plan-amount">{{ plan_catalogue.weekly.price|floatformat:0 }}</span>
+      <span class="plan-period">/ week</span>
+    </div>
+    <div class="plan-divider"></div>
+    <ul class="plan-features">
+      <li>
+        <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+        Unlimited form submissions
+      </li>
+      <li>
+        <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+        Telegram notifications
+      </li>
+      <li>
+        <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+        Unique shareable form URL
+      </li>
+      <li>
+        <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+        7-day access
+      </li>
+    </ul>
+    {% if user.is_authenticated %}
+    <button class="btn-pay" onclick="openPayModal('weekly','Weekly','KES {{ plan_catalogue.weekly.price|floatformat:0 }}','{% url "accounts:initiate_payment" %}')">Pay KES {{ plan_catalogue.weekly.price|floatformat:0 }}</button>
+    {% else %}
+    <a href="{% url 'accounts:register' %}" class="login-cta">Get started</a>
+    {% endif %}
+  </div>
+  {% endwith %}
+
+  {# ── Monthly ────────────────────────────────────────────────────────── #}
+  {% with plan=plan_catalogue.monthly %}
+  <div class="plan-card popular">
+    <div class="popular-badge">Most popular</div>
+    <p class="plan-name">Monthly</p>
+    <div class="plan-price">
+      <span class="plan-currency">KES</span>
+      <span class="plan-amount">{{ plan_catalogue.monthly.price|floatformat:0 }}</span>
+      <span class="plan-period">/ month</span>
+    </div>
+    <span class="plan-saves">Save KES 110 vs weekly</span>
+    <div class="plan-divider"></div>
+    <ul class="plan-features">
+      <li>
+        <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+        Unlimited form submissions
+      </li>
+      <li>
+        <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+        Telegram notifications
+      </li>
+      <li>
+        <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+        Unique shareable form URL
+      </li>
+      <li>
+        <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+        30-day access
+      </li>
+    </ul>
+    {% if user.is_authenticated %}
+    <button class="btn-pay" onclick="openPayModal('monthly','Monthly','KES {{ plan_catalogue.monthly.price|floatformat:0 }}','{% url "accounts:initiate_payment" %}')">Pay KES {{ plan_catalogue.monthly.price|floatformat:0 }}</button>
+    {% else %}
+    <a href="{% url 'accounts:register' %}" class="login-cta">Get started</a>
+    {% endif %}
+  </div>
+  {% endwith %}
+
+  {# ── 6 Months ───────────────────────────────────────────────────────── #}
+  {% with plan=plan_catalogue.biannual %}
+  <div class="plan-card">
+    <div class="plan-spacer"></div>
+    <p class="plan-name">6 Months</p>
+    <div class="plan-price">
+      <span class="plan-currency">KES</span>
+      <span class="plan-amount">{{ plan_catalogue.biannual.price|floatformat:0 }}</span>
+      <span class="plan-period">/ 6 mo.</span>
+    </div>
+    <span class="plan-saves">Save KES 690 vs monthly</span>
+    <div class="plan-divider"></div>
+    <ul class="plan-features">
+      <li>
+        <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+        Unlimited form submissions
+      </li>
+      <li>
+        <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+        Telegram notifications
+      </li>
+      <li>
+        <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+        Unique shareable form URL
+      </li>
+      <li>
+        <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+        180-day access
+      </li>
+    </ul>
+    {% if user.is_authenticated %}
+    <button class="btn-pay" onclick="openPayModal('biannual','6 Months','KES {{ plan_catalogue.biannual.price|floatformat:0 }}','{% url "accounts:initiate_payment" %}')">Pay KES {{ plan_catalogue.biannual.price|floatformat:0 }}</button>
+    {% else %}
+    <a href="{% url 'accounts:register' %}" class="login-cta">Get started</a>
+    {% endif %}
+  </div>
+  {% endwith %}
+
+</div>
+
+<p class="footer-note">
+  Payments processed securely via M-Pesa &amp; PayHero.
+  Already have an account? <a href="{% url 'accounts:login' %}">Log in</a> to manage your subscription.
+</p>
+
+{# ── Payment modal (shown only when logged in) ────────────────────────────── #}
+{% if user.is_authenticated %}
+<div class="modal-backdrop" id="payModal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+  <div class="modal">
+    <button class="modal-close" onclick="closePayModal()" aria-label="Close">
+      <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+      </svg>
+    </button>
+    <span class="modal-plan-label" id="modal-plan-label">Weekly</span>
+    <h2 id="modal-title">Confirm payment</h2>
+    <div class="modal-amount" id="modal-amount">KES {{ plan_catalogue.weekly.price|floatformat:0 }} <span>one-time</span></div>
+    <form method="post" id="modal-form">
+      {% csrf_token %}
+      <input type="hidden" name="plan" id="modal-plan-input" value="weekly" />
+      <label for="modal-phone">M-Pesa phone number</label>
+      <div class="phone-row">
+        <span class="phone-prefix">🇰🇪 +254</span>
+        <input type="tel" id="modal-phone" name="phone" placeholder="712 345 678"
+               maxlength="9" inputmode="numeric" autocomplete="tel-national" required />
+      </div>
+      <p class="phone-help">Enter the 9-digit number after +254. The M-Pesa PIN prompt will be sent here.</p>
+      <button type="submit" class="btn-modal-pay" id="modal-submit-btn">Send M-Pesa prompt</button>
+    </form>
+    <p class="modal-secure">
+      <svg width="13" height="13" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+      </svg>
+      Secured by PayHero &amp; M-Pesa
+    </p>
+  </div>
+</div>
+{% endif %}
+
+{% if user.is_authenticated %}
+<script>
+function openPayModal(planKey, planLabel, planAmount, actionUrl) {
+  document.getElementById("modal-plan-input").value = planKey;
+  document.getElementById("modal-plan-label").textContent = planLabel;
+  document.getElementById("modal-amount").innerHTML = planAmount + ' <span>one-time</span>';
+  document.getElementById("modal-submit-btn").textContent = "Send M-Pesa prompt — " + planAmount;
+  document.getElementById("modal-form").action = actionUrl;
+  document.getElementById("payModal").classList.add("open");
+  setTimeout(() => document.getElementById("modal-phone").focus(), 50);
+}
+function closePayModal() {
+  document.getElementById("payModal").classList.remove("open");
+}
+document.getElementById("payModal").addEventListener("click", function(e) {
+  if (e.target === this) closePayModal();
+});
+document.addEventListener("keydown", function(e) {
+  if (e.key === "Escape") closePayModal();
+});
+</script>
+{% endif %}
+</body>
+</html>

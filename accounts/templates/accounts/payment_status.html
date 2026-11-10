@@ -1,0 +1,228 @@
+{% extends "accounts/dashboard_base.html" %}
+
+{% block title %}Payment — Waiting for M-Pesa{% endblock %}
+
+{% block extra_head %}
+<style>
+  .status-wrap {
+    max-width: 480px;
+    margin: 0 auto;
+    text-align: center;
+    padding: 48px 24px;
+  }
+
+  /* ── Spinner ─────────────────────────────────────────────────────────── */
+  .spinner-ring {
+    width: 72px;
+    height: 72px;
+    margin: 0 auto 32px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .spinner-ring circle {
+    fill: none;
+    stroke: var(--primary);
+    stroke-width: 5;
+    stroke-dasharray: 160;
+    stroke-dashoffset: 40;
+    transform-origin: center;
+    animation: spin 1s linear infinite;
+  }
+
+  /* ── Result icons ───────────────────────────────────────────────────── */
+  .icon-wrap {
+    width: 72px;
+    height: 72px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 32px;
+  }
+  .icon-wrap.success { background: #d1fae5; }
+  .icon-wrap.failed  { background: #fee2e2; }
+  .icon-wrap.stale   { background: #f3f4f6; }
+
+  .status-wrap h2 { font-size: 26px; font-weight: 700; margin-bottom: 12px; }
+  .status-wrap p  { font-size: 15px; color: var(--muted); line-height: 1.6; margin-bottom: 8px; }
+
+  .receipt-box {
+    display: inline-block;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 8px 20px;
+    font-family: monospace;
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    margin: 16px 0;
+  }
+
+  .action-link {
+    display: inline-block;
+    margin-top: 24px;
+    padding: 12px 28px;
+    background: var(--primary);
+    color: #fff;
+    border-radius: 8px;
+    text-decoration: none;
+    font-weight: 700;
+    font-size: 15px;
+    transition: background .15s;
+  }
+  .action-link:hover { background: var(--primary-dark); }
+  .action-link.secondary {
+    background: #fff;
+    color: var(--text);
+    border: 1px solid var(--border);
+    margin-left: 12px;
+  }
+  .action-link.secondary:hover { background: var(--bg); }
+
+  .dots span {
+    display: inline-block;
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: var(--primary);
+    margin: 0 2px;
+    opacity: .3;
+    animation: dot-pulse 1.4s infinite ease-in-out both;
+  }
+  .dots span:nth-child(1) { animation-delay: -.32s; }
+  .dots span:nth-child(2) { animation-delay: -.16s; }
+  @keyframes dot-pulse {
+    0%, 80%, 100% { opacity: .3; transform: scale(.8); }
+    40%           { opacity: 1;  transform: scale(1);  }
+  }
+
+  .timeout-note {
+    margin-top: 24px;
+    font-size: 13px;
+    color: var(--muted);
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header" style="text-align:center;">
+  <h1>M-Pesa Payment</h1>
+  <p>{{ plan_info.label|default:payment.plan|title }} plan — KES {{ payment.amount|floatformat:0 }}</p>
+</div>
+
+<div class="status-wrap" id="status-wrap">
+
+  {# Initial pending/queued state — JS replaces this ─────────────────────── #}
+  <svg class="spinner-ring" viewBox="0 0 72 72">
+    <circle cx="36" cy="36" r="30"/>
+  </svg>
+
+  <h2>Waiting for your M-Pesa PIN</h2>
+  <p>An M-Pesa prompt has been sent to <strong>{{ payment.phone }}</strong>.</p>
+  <p>Enter your M-Pesa PIN on your phone to complete the payment.</p>
+  <div class="dots" style="margin-top:24px;">
+    <span></span><span></span><span></span>
+  </div>
+  <p class="timeout-note" id="timeout-note">This page will update automatically.</p>
+
+</div>
+
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+(function () {
+  const JSON_URL  = "{% url 'accounts:payment_status_json' pk=payment.pk %}";
+  const BILLING   = "{% url 'accounts:billing' %}";
+  const DASHBOARD = "{% url 'accounts:dashboard' %}";
+
+  const wrap = document.getElementById("status-wrap");
+
+  let attempts = 0;
+  const MAX_ATTEMPTS = 30;    // 30 × 3s = 90s
+  let intervalId;
+
+  function renderSuccess(data) {
+    wrap.innerHTML = `
+      <div class="icon-wrap success">
+        <svg width="36" height="36" fill="none" stroke="#1a9c5b" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/>
+        </svg>
+      </div>
+      <h2>Payment confirmed!</h2>
+      <p>Your <strong>${planLabel(data.plan)}</strong> subscription is now active.</p>
+      ${data.mpesa_receipt
+        ? `<p style="font-size:13px;color:var(--muted);">M-Pesa receipt</p>
+           <div class="receipt-box">${data.mpesa_receipt}</div>`
+        : ""}
+      <br/>
+      <a href="${DASHBOARD}" class="action-link">Go to dashboard</a>
+    `;
+  }
+
+  function renderFailed(data) {
+    wrap.innerHTML = `
+      <div class="icon-wrap failed">
+        <svg width="36" height="36" fill="none" stroke="#e02020" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"/>
+        </svg>
+      </div>
+      <h2>Payment ${data.status === "cancelled" ? "cancelled" : "failed"}</h2>
+      <p>${data.result_description || "The payment was not completed."}</p>
+      <p style="font-size:13px;">You can try again from your billing page.</p>
+      <a href="${BILLING}" class="action-link">Back to billing</a>
+    `;
+  }
+
+  function renderStale() {
+    wrap.innerHTML = `
+      <div class="icon-wrap stale">
+        <svg width="36" height="36" fill="none" stroke="#6b7280" viewBox="0 0 24 24">
+          <circle cx="12" cy="12" r="9" stroke-width="2"/>
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 7v5l3 3"/>
+        </svg>
+      </div>
+      <h2>Still waiting…</h2>
+      <p>We haven't received confirmation yet. If you completed the M-Pesa prompt,
+         your subscription will activate shortly.</p>
+      <p style="font-size:13px;">Check your billing page in a moment.</p>
+      <a href="${BILLING}" class="action-link">Go to billing</a>
+    `;
+  }
+
+  function planLabel(key) {
+    return { weekly: "Weekly", monthly: "Monthly", biannual: "6 Month" }[key] || key;
+  }
+
+  function poll() {
+    attempts++;
+    fetch(JSON_URL)
+      .then(r => r.json())
+      .then(data => {
+        const s = data.status;
+        if (s === "success") {
+          clearInterval(intervalId);
+          renderSuccess(data);
+        } else if (s === "failed" || s === "cancelled") {
+          clearInterval(intervalId);
+          renderFailed(data);
+        } else if (attempts >= MAX_ATTEMPTS) {
+          clearInterval(intervalId);
+          renderStale();
+        }
+        // pending / queued → keep polling
+      })
+      .catch(() => {
+        // network blip — keep going until MAX_ATTEMPTS
+        if (attempts >= MAX_ATTEMPTS) {
+          clearInterval(intervalId);
+          renderStale();
+        }
+      });
+  }
+
+  // Poll immediately, then every 3 s
+  poll();
+  intervalId = setInterval(poll, 3000);
+})();
+</script>
+{% endblock %}

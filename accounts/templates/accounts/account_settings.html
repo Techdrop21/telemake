@@ -1,0 +1,62 @@
+{% extends "accounts/dashboard_base.html" %}
+{% block title %}Account Settings{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1>Account Settings</h1>
+  <p>Update your profile and login details.</p>
+</div>
+
+<div class="card">
+  <div class="card-header"><h3>Profile</h3></div>
+  <div class="card-body">
+    <form method="post">
+      {% csrf_token %}
+
+      <div class="form-group">
+        <label class="form-label" for="business_name">Business name</label>
+        <input type="text" class="form-control" id="business_name" name="business_name"
+               value="{{ business_owner.business_name }}" required />
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="email">Email address</label>
+        <input type="email" class="form-control" id="email" name="email"
+               value="{{ business_owner.user.email }}" required />
+        <p class="form-help">This is your login email — changing it updates your login too.</p>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="phone">M-Pesa phone number</label>
+        <input type="text" class="form-control" id="phone" name="phone"
+               value="{{ business_owner.phone }}" placeholder="+254 712 345 678" />
+        <p class="form-help">Used to pre-fill the payment form. Format: 0712345678 or +254712345678.</p>
+      </div>
+
+      <button type="submit" class="btn btn--primary">Save changes</button>
+    </form>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header"><h3>Account details</h3></div>
+  <div class="card-body">
+    <div style="display:flex; flex-direction:column; gap:12px;">
+
+      <div style="display:flex; justify-content:space-between; align-items:center;
+                  padding:11px 14px; background:var(--bg); border-radius:7px; border:1px solid var(--border);">
+        <span style="font-size:13px; color:var(--muted);">Account ID</span>
+        <span style="font-family:monospace; font-size:12px; color:var(--text-2);">{{ business_owner.public_uuid }}</span>
+      </div>
+
+      <div style="display:flex; justify-content:space-between; align-items:center;
+                  padding:11px 14px; background:var(--bg); border-radius:7px; border:1px solid var(--border);">
+        <span style="font-size:13px; color:var(--muted);">Member since</span>
+        <span style="font-size:13px; color:var(--text-2);">{{ business_owner.created_at|date:"j M Y" }}</span>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+{% endblock %}

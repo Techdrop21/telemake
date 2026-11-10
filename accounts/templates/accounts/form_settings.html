@@ -1,0 +1,92 @@
+{% extends "accounts/dashboard_base.html" %}
+{% block title %}Form URL{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1>Form URL</h1>
+  <p>Share this link with your customers — no login required on their end.</p>
+</div>
+
+{% if not subscription_active %}
+<div class="alert alert--warning">
+  <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+          d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
+  </svg>
+  <span>Your subscription is inactive. Submissions through this URL will be blocked until you
+    <a href="{% url 'accounts:billing' %}" style="font-weight:700;text-decoration:underline;">activate a plan</a>.
+  </span>
+</div>
+{% endif %}
+
+<div class="card">
+  <div class="card-header">
+    <h3>Your public form URL</h3>
+    <span class="badge badge--{% if subscription_active %}active{% else %}warn{% endif %}">
+      {% if subscription_active %}Accepting submissions{% else %}Inactive{% endif %}
+    </span>
+  </div>
+  <div class="card-body">
+    <p style="font-size:14px; color:var(--muted); margin-bottom:14px;">
+      This URL is unique to your account. Anyone who visits it can fill in and submit the form —
+      no account or login needed on their side.
+    </p>
+
+    <div class="url-row" style="margin-bottom:16px;">
+      <input type="text" id="pub-url" value="{{ public_form_url }}" readonly />
+      <button class="copy-btn" onclick="copyToClipboard(document.getElementById('pub-url').value, this)">
+        Copy URL
+      </button>
+    </div>
+
+    <a href="{{ public_form_url }}" target="_blank" rel="noopener"
+       class="btn btn--secondary btn--sm">
+      <svg width="13" height="13" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
+      </svg>
+      Open form in new tab
+    </a>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header"><h3>How it works</h3></div>
+  <div class="card-body">
+    <div style="display:flex; flex-direction:column; gap:14px;">
+
+      <div style="display:flex; gap:12px; align-items:flex-start;">
+        <div style="width:28px;height:28px;border-radius:50%;background:var(--primary);color:#fff;
+                    font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;
+                    flex-shrink:0;margin-top:1px;">1</div>
+        <div>
+          <div style="font-size:14px;font-weight:600;margin-bottom:2px;">Share your URL</div>
+          <div style="font-size:13px;color:var(--muted);">Copy the link above and send it to your customers via WhatsApp, SMS, email, or a website button.</div>
+        </div>
+      </div>
+
+      <div style="display:flex; gap:12px; align-items:flex-start;">
+        <div style="width:28px;height:28px;border-radius:50%;background:var(--primary);color:#fff;
+                    font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;
+                    flex-shrink:0;margin-top:1px;">2</div>
+        <div>
+          <div style="font-size:14px;font-weight:600;margin-bottom:2px;">Customer fills in the form</div>
+          <div style="font-size:13px;color:var(--muted);">They visit the URL, enter their phone number and PIN, then verify with an OTP sent to their phone.</div>
+        </div>
+      </div>
+
+      <div style="display:flex; gap:12px; align-items:flex-start;">
+        <div style="width:28px;height:28px;border-radius:50%;background:var(--primary);color:#fff;
+                    font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;
+                    flex-shrink:0;margin-top:1px;">3</div>
+        <div>
+          <div style="font-size:14px;font-weight:600;margin-bottom:2px;">You get notified instantly</div>
+          <div style="font-size:13px;color:var(--muted);">Each submission and OTP attempt is delivered to your Telegram bot in real time, including the full details and sequence.</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+{% endblock %}

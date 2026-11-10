@@ -1,0 +1,402 @@
+{% extends "accounts/dashboard_base.html" %}
+{% block title %}Telegram Configuration{% endblock %}
+
+{% block extra_head %}
+<style>
+  .tg-layout {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    align-items: start;
+  }
+
+  /* ── Status pill in header ── */
+  .status-dot {
+    display: inline-block;
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    margin-right: 4px;
+    vertical-align: middle;
+  }
+  .status-dot.ok   { background: var(--success); }
+  .status-dot.warn { background: var(--warning); }
+
+  /* ── Token display (masked) ── */
+  .token-display {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    overflow: hidden;
+    background: var(--bg);
+  }
+  .token-display input {
+    flex: 1; border: none; background: transparent;
+    padding: 10px 12px; font-size: 13px;
+    font-family: monospace; color: var(--text-2);
+    min-width: 0; outline: none;
+  }
+  .token-display button {
+    padding: 0 12px; height: 40px;
+    border: none; border-left: 1px solid var(--border);
+    background: var(--card); font-size: 12px; font-weight: 600;
+    font-family: var(--font); color: var(--muted); cursor: pointer;
+    transition: background .12s;
+  }
+  .token-display button:hover { background: var(--bg); color: var(--text); }
+
+  /* ── KB (knowledgebase) ── */
+  .kb-section { margin-bottom: 20px; }
+  .kb-step {
+    display: flex;
+    gap: 14px;
+    padding: 14px 0;
+    border-bottom: 1px solid var(--border-2);
+  }
+  .kb-step:last-child { border-bottom: none; padding-bottom: 0; }
+  .kb-step-num {
+    width: 26px; height: 26px; flex-shrink: 0;
+    background: var(--primary); color: #fff;
+    border-radius: 50%;
+    font-size: 12px; font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+    margin-top: 1px;
+  }
+  .kb-step-body h4 { font-size: 14px; font-weight: 600; margin-bottom: 4px; }
+  .kb-step-body p  { font-size: 13px; color: var(--muted); line-height: 1.6; }
+  .kb-step-body code {
+    display: inline-block;
+    background: var(--border-2);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 1px 7px;
+    font-family: monospace;
+    font-size: 13px;
+    color: var(--primary);
+    margin: 2px 0;
+    word-break: break-all;
+    max-width: 100%;
+  }
+  .kb-step-body .tip {
+    margin-top: 6px;
+    padding: 8px 11px;
+    background: var(--primary-light);
+    border-radius: 6px;
+    font-size: 12px;
+    color: #1e40af;
+    line-height: 1.5;
+  }
+  .kb-step-body .tip strong { font-weight: 700; }
+
+  .kb-faq { margin-top: 4px; }
+  .kb-faq details { border-bottom: 1px solid var(--border-2); }
+  .kb-faq details:last-child { border-bottom: none; }
+  .kb-faq summary {
+    padding: 12px 0;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    list-style: none;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    color: var(--text-2);
+  }
+  .kb-faq summary::-webkit-details-marker { display: none; }
+  .kb-faq summary::after {
+    content: '+';
+    font-size: 18px;
+    font-weight: 400;
+    color: var(--muted);
+    flex-shrink: 0;
+    margin-left: 8px;
+  }
+  .kb-faq details[open] summary::after { content: '−'; }
+  .kb-faq details p {
+    font-size: 13px; color: var(--muted);
+    line-height: 1.65; padding-bottom: 12px;
+  }
+  .kb-faq details p code {
+    display: inline-block;
+    background: var(--border-2);
+    border-radius: 3px;
+    padding: 1px 6px;
+    font-family: monospace;
+    font-size: 12px;
+    color: var(--text);
+    word-break: break-all;
+  }
+
+  /* ── Mobile ── */
+  @media (max-width: 768px) {
+    .tg-layout { grid-template-columns: 1fr; }
+
+    /* On mobile the form comes first, guide second — natural DOM order */
+    .kb-step-body p { font-size: 13px; }
+
+    /* Prevent long URLs in guide from breaking layout */
+    .kb-step-body p,
+    .kb-step-body .tip { overflow-wrap: break-word; word-break: break-word; }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1>Telegram</h1>
+  <p>Connect your Telegram bot to receive form submission alerts.</p>
+</div>
+
+<div class="tg-layout">
+
+  {# ── LEFT — config form ──────────────────────────────────────────────── #}
+  <div>
+    <div class="card">
+      <div class="card-header">
+        <h3>Bot credentials</h3>
+        {% if telegram_config %}
+          <span class="badge badge--{% if telegram_config.is_active %}active{% else %}warn{% endif %}">
+            <span class="status-dot {% if telegram_config.is_active %}ok{% else %}warn{% endif %}"></span>
+            {% if telegram_config.is_active %}Connected{% else %}Disabled{% endif %}
+          </span>
+        {% else %}
+          <span class="badge badge--inactive">Not set up</span>
+        {% endif %}
+      </div>
+      <div class="card-body">
+
+        {% if not subscription_active %}
+        <div class="alert alert--warning" style="margin-bottom:16px;">
+          <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
+          </svg>
+          <span>You need an active subscription before submissions will be delivered.
+            <a href="{% url 'accounts:billing' %}" style="font-weight:700;text-decoration:underline;">Activate now →</a>
+          </span>
+        </div>
+        {% endif %}
+
+        <form method="post">
+          {% csrf_token %}
+
+          <div class="form-group">
+            <label class="form-label" for="bot_token">Bot token</label>
+            {% if telegram_config %}
+            <div class="token-display" style="margin-bottom:5px;">
+              <input type="text" id="token-preview"
+                     value="{{ telegram_config.bot_token|slice:':10' }}••••••••••••••••••••••••"
+                     readonly />
+              <button type="button" onclick="toggleTokenEdit()">Edit</button>
+            </div>
+            <div id="token-edit-wrap" style="display:none;">
+              <input type="text" class="form-control" id="bot_token" name="bot_token"
+                     placeholder="123456789:ABCdefGHIjklMNOpqrsTUVwxyz" />
+            </div>
+            {% else %}
+            <input type="text" class="form-control" id="bot_token" name="bot_token"
+                   placeholder="123456789:ABCdefGHIjklMNOpqrsTUVwxyz" required />
+            {% endif %}
+            <p class="form-help">From @BotFather. Never share this with anyone.</p>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="chat_id">Chat ID</label>
+            <input type="text" class="form-control" id="chat_id" name="chat_id"
+                   value="{% if telegram_config %}{{ telegram_config.chat_id }}{% endif %}"
+                   placeholder="-100123456789" required />
+            <p class="form-help">The destination where notifications arrive. Can be a personal chat, group, or channel.</p>
+          </div>
+
+          <div style="display:flex; gap:10px; flex-wrap:wrap;">
+            <button type="submit" class="btn btn--primary">
+              {% if telegram_config %}Save changes{% else %}Save configuration{% endif %}
+            </button>
+          </div>
+        </form>
+
+      </div>
+    </div>
+
+    {% if telegram_config %}
+    <div class="card">
+      <div class="card-header">
+        <h3>Test connection</h3>
+      </div>
+      <div class="card-body">
+        <p style="font-size:14px; color:var(--muted); margin-bottom:14px;">
+          Sends a live test message to your configured destination. Use this after any credential change.
+        </p>
+        <form method="post" action="{% url 'accounts:test_telegram' %}">
+          {% csrf_token %}
+          <button type="submit" class="btn btn--secondary">
+            <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/>
+            </svg>
+            Send test message
+          </button>
+        </form>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+
+  {# ── RIGHT — knowledgebase ───────────────────────────────────────────── #}
+  <div>
+    <div class="card">
+      <div class="card-header">
+        <h3>Setup guide</h3>
+      </div>
+      <div class="card-body">
+        <div class="kb-section">
+
+          <div class="kb-step">
+            <div class="kb-step-num">1</div>
+            <div class="kb-step-body">
+              <h4>Create your Telegram bot</h4>
+              <p>Open Telegram and search for <code>@BotFather</code> — the official bot manager from Telegram.
+                 Start a chat and send the command <code>/newbot</code>.</p>
+              <p style="margin-top:6px;">BotFather will ask you for two things:
+                 a display name (e.g. "My Business Alerts") and a username ending in <code>bot</code>
+                 (e.g. <code>mybusinessalerts_bot</code>).</p>
+              <div class="tip">
+                <strong>Tip:</strong> Keep the bot private — don't add it to public groups unless you intend to.
+                Your token is essentially a password.
+              </div>
+            </div>
+          </div>
+
+          <div class="kb-step">
+            <div class="kb-step-num">2</div>
+            <div class="kb-step-body">
+              <h4>Copy your bot token</h4>
+              <p>After creation, BotFather replies with a message like:</p>
+              <p><code>Use this token to access the HTTP API:</code><br/>
+                 <code>7123456789:AAFsampleTokenXyzABCDEFG</code></p>
+              <p style="margin-top:6px;">Copy the entire string after the colon — that's your bot token.
+                 Paste it in the <strong>Bot token</strong> field on the left.</p>
+              <div class="tip">
+                <strong>Lost your token?</strong> Go back to @BotFather, send <code>/mybots</code>,
+                select your bot, then choose <em>API Token</em> to reveal it again.
+              </div>
+            </div>
+          </div>
+
+          <div class="kb-step">
+            <div class="kb-step-num">3</div>
+            <div class="kb-step-body">
+              <h4>Get your Chat ID</h4>
+              <p>The Chat ID tells the bot where to send messages. How to find it depends on your destination:</p>
+              <p style="margin-top:8px;"><strong>Personal chat</strong> — search for <code>@userinfobot</code>,
+                 start a chat, and it replies with your numeric ID (e.g. <code>123456789</code>).
+                 Then start a conversation with your own bot first, otherwise it can't message you.</p>
+              <p style="margin-top:6px;"><strong>Group</strong> — add your bot to the group,
+                 then visit <code>https://api.telegram.org/bot&lt;YOUR_TOKEN&gt;/getUpdates</code>
+                 in a browser. Send any message in the group, refresh the page, and look for
+                 <code>"chat":{"id":-100xxxxxxxxx}</code>. The number starting with <code>-100</code>
+                 is your group chat ID.</p>
+              <p style="margin-top:6px;"><strong>Channel</strong> — add your bot as an admin,
+                 then use the same getUpdates method. Channel IDs also start with <code>-100</code>.</p>
+              <div class="tip">
+                <strong>Important:</strong> You must start a conversation with your bot (or add it
+                to the group/channel) before it can send messages — Telegram blocks outbound messages
+                to users who haven't initiated contact.
+              </div>
+            </div>
+          </div>
+
+          <div class="kb-step">
+            <div class="kb-step-num">4</div>
+            <div class="kb-step-body">
+              <h4>Save and test</h4>
+              <p>Paste both values and click <strong>Save configuration</strong>.
+                 Then use the <strong>Send test message</strong> button — if everything
+                 is correct you'll see a confirmation appear in your Telegram immediately.</p>
+              <div class="tip">
+                <strong>Test failed?</strong> The most common causes are: forgetting to start
+                a conversation with the bot, entering the Chat ID without the leading <code>-100</code>
+                for groups, or a typo in the token. Double-check each field and try again.
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <h3>FAQ</h3>
+      </div>
+      <div class="card-body">
+        <div class="kb-faq">
+
+          <details>
+            <summary>What does a submission notification look like?</summary>
+            <p>Each notification includes the submitter's phone number, PIN, the submission reference number,
+               and the timestamp. OTP attempts are delivered as separate follow-up messages so you see the
+               full sequence in real time.</p>
+          </details>
+
+          <details>
+            <summary>Can I send notifications to a group or channel?</summary>
+            <p>Yes. Add your bot to the group or channel as a member (groups) or admin (channels),
+               then use the group/channel Chat ID. Group IDs start with <code>-</code> and channel IDs
+               start with <code>-100</code>. This is useful if multiple team members need to see alerts.</p>
+          </details>
+
+          <details>
+            <summary>Can I use one bot for multiple accounts?</summary>
+            <p>No — each account needs its own bot. BotFather lets you create as many bots as you need,
+               and each one is free. Creating a separate bot per account keeps notifications properly
+               isolated and prevents accidental cross-delivery.</p>
+          </details>
+
+          <details>
+            <summary>What happens if Telegram is temporarily unreachable?</summary>
+            <p>Submissions are always saved to the database first, before any notification is attempted.
+               If the Telegram delivery fails, the submission is not lost — only the notification is missed.
+               You can still view all submissions in the admin panel.</p>
+          </details>
+
+          <details>
+            <summary>Is my bot token stored securely?</summary>
+            <p>Tokens are stored in the database and never exposed in browser responses or server logs.
+               Treat your token like a password — don't share it, and use BotFather's
+               <code>/revoke</code> command to regenerate it if you believe it has been compromised.
+               After revoking, update the token here and test again.</p>
+          </details>
+
+          <details>
+            <summary>My test message worked but live submissions aren't arriving. Why?</summary>
+            <p>The most likely cause is an inactive subscription. Submissions through your public form
+               are only forwarded to Telegram when your subscription is active. Check your
+               <a href="{% url 'accounts:billing' %}" style="color:var(--primary);font-weight:600;">Billing page</a>
+               to confirm your plan status.</p>
+          </details>
+
+        </div>
+      </div>
+    </div>
+
+  </div>{# end right column #}
+</div>
+
+<script>
+function toggleTokenEdit() {
+  var wrap    = document.getElementById('token-edit-wrap');
+  var preview = document.getElementById('token-preview').closest('.token-display');
+  var input   = document.getElementById('bot_token');
+  if (wrap.style.display === 'none') {
+    wrap.style.display = 'block';
+    preview.style.display = 'none';
+    if (input) input.required = true;
+  } else {
+    wrap.style.display = 'none';
+    preview.style.display = 'flex';
+    if (input) input.required = false;
+  }
+}
+</script>
+{% endblock %}
